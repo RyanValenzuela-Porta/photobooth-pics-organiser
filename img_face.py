@@ -11,20 +11,19 @@ from insightface.app import FaceAnalysis
 
 def process_image_directory(input_dir: str, output_dir: str, eps: float = 0.6, min_samples: int = 1):
     """
-    Detects faces in JPEG images, clusters unique identities robust to 3D rotation/expression,
-    and generates Markdown files listing where each unique face appears.
+    Detects faces in JPEG images, clusters unique identities, crops profile pictures
+    for each unique identity, and generates a single Markdown file listing all persons.
     
     :param input_dir: Path to directory containing JPEG images.
-    :param output_dir: Path to directory where face-X.md files will be saved.
-    :param eps: DBSCAN distance threshold (lower = stricter identity matching, default ~0.6 for cosine).
-    :param min_samples: Minimum detections to form a cluster (1 ensures single-appearance faces are kept).
+    :param output_dir: Path to directory where unique_faces.md and face-X.jpg files will be saved.
+    :param eps: DBSCAN distance threshold (lower = stricter identity matching).
+    :param min_samples: Minimum detections to form a cluster.
     """
     input_path = Path(input_dir)
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
     # 1. Initialize InsightFace FaceAnalysis App
-    # Uses ONNX runtime under the hood; will automatically utilize CUDA if available.
     app = FaceAnalysis(name='buffalo_l', providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
     app.prepare(ctx_id=0, det_size=(640, 640))
 
@@ -43,24 +42,30 @@ def process_image_directory(input_dir: str, output_dir: str, eps: float = 0.6, m
 
     print(f"Found {len(image_paths)} images. Detecting and extracting facial embeddings...")
 
-    face_records = []  # Stores tuple of (image_filepath, embedding)
+    face_records = []  # Stores face metadata, bounding box, and embedding
 
-    # 3. Detect faces & extract embeddings
+    # 3. Detect faces & extract embeddings + bounding boxes
     for img_path in tqdm(image_paths, desc="Processing Images"):
-        # Read image using OpenCV
         img = cv2.imread(str(img_path))
         if img is None:
             continue
         
-        # Detect faces (robust to rotation & expressions)
         faces = app.get(img)
         
         for face in faces:
             # Normalized embedding vector (512-dim)
             embedding = face.embedding / np.linalg.norm(face.embedding)
+            
+            # Extract and clip bounding box coordinates to image dimensions
+            bbox = face.bbox.astype(int)
+            h, w, _ = img.shape
+            x1, y1 = max(0, bbox[0]), max(0, bbox[1])
+            x2, y2 = min(w, bbox[2]), min(h, bbox[3])
+
             face_records.append({
                 'filepath': str(img_path.resolve()),
-                'embedding': embedding
+                'embedding': embedding,
+                'bbox': (x1, y1, x2, y2)
             })
 
     if not face_records:
@@ -69,51 +74,68 @@ def process_image_directory(input_dir: str, output_dir: str, eps: float = 0.6, m
 
     print(f"Extracted {len(face_records)} total face instances. Clustering unique identities...")
 
-    # 4. Cluster face embeddings using DBSCAN with Cosine Distance
+    # 4. Cluster face embeddings using DBSCAN
     embeddings = np.array([r['embedding'] for r in face_records])
-    
-    # Cosine distance = 1 - cosine_similarity. 
-    # ArcFace threshold typically sits around 0.4 to 0.6 distance.
     clustering = DBSCAN(eps=eps, min_samples=min_samples, metric='cosine')
     labels = clustering.fit_predict(embeddings)
 
-    # Group image paths by cluster ID
-    clusters = defaultdict(set)  # Use set to avoid duplicate image entries per person
+    # Group face instances by cluster label
+    clusters = defaultdict(list)
     for record, label in zip(face_records, labels):
-        if label != -1:  # -1 represents noise/unclustered in DBSCAN (if min_samples > 1)
-            clusters[label].add(record['filepath'])
+        if label != -1:
+            clusters[label].append(record)
         else:
-            # Handle noise as unique individual faces if needed
             unique_noise_id = f"noise_{id(record)}"
-            clusters[unique_noise_id].add(record['filepath'])
+            clusters[unique_noise_id].append(record)
 
-    print(f"Identified {len(clusters)} unique individual face(s). Generating Markdown files...")
+    print(f"Identified {len(clusters)} unique individual face(s). Cropping profile pictures & generating single Markdown file...")
 
-    # 5. Generate Markdown files
-    for idx, (cluster_id, filepaths) in enumerate(clusters.items(), start=1):
-        md_filename = output_path / f"face-{idx}.md"
-        sorted_paths = sorted(list(filepaths))
+    # Path to the single output Markdown file
+    md_filename = output_path / "unique_faces.md"
 
-        with open(md_filename, 'w', encoding='utf-8') as f:
+    # 5. Crop profile pictures and write single Markdown file
+    with open(md_filename, 'w', encoding='utf-8') as f:
+        for idx, (cluster_id, records) in enumerate(clusters.items(), start=1):
+            person_label = f"face-{idx}"
+            profile_img_filename = f"{person_label}.jpg"
+            profile_img_path = output_path / profile_img_filename
+
+            # --- Generate Profile Picture (using the first instance) ---
+            first_record = records[0]
+            source_img = cv2.imread(first_record['filepath'])
+            if source_img is not None:
+                x1, y1, x2, y2 = first_record['bbox']
+                crop = source_img[y1:y2, x1:x2]
+                if crop.size > 0:
+                    cv2.imwrite(str(profile_img_path), crop)
+
+            # Collect unique image file paths containing this face
+            unique_filepaths = sorted(list({r['filepath'] for r in records}))
+
+            # --- Append Person Section to Markdown ---
             f.write(f"# Person Identity {idx}\n\n")
-            f.write(f"Total photos appeared in: **{len(sorted_paths)}**\n\n")
-            f.write("--- \n\n")
+            
+            if profile_img_path.exists():
+                f.write(f"![Profile Picture]({profile_img_filename})\n\n")
+            
+            f.write(f"Total photos appeared in: **{len(unique_filepaths)}**\n\n")
 
-            for filepath in sorted_paths:
+            for filepath in unique_filepaths:
                 f.write(f"### Image Path\n")
                 f.write(f"`{filepath}`\n\n")
                 f.write(f"![image]({filepath})\n\n")
-                f.write("---\n\n")
+            
+            # Separator between person sections
+            f.write("\n---\n\n")
 
-    print(f"Successfully generated {len(clusters)} Markdown output files in '{output_dir}'.")
+    print(f"Successfully saved profile pictures and consolidated report to '{md_filename}'.")
 
 if __name__ == "__main__":
-    # Example Usage:
     INPUT_DIRECTORY = "C:/Users/RyanV/Documents/photobooth_customs"
     OUTPUT_DIRECTORY = "./unique_faces_md"
     
     process_image_directory(
         input_dir=INPUT_DIRECTORY,
         output_dir=OUTPUT_DIRECTORY,
-        eps=0.55  # Adjust between 0.45 (strict) and 0.65 (loose) if needed
+        eps=0.55
     )
