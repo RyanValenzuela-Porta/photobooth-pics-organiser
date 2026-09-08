@@ -1,0 +1,368 @@
+/* Reset and base styles */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background-color: #f5f5f5;
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Header */
+header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 20px 0;
+}
+
+header h1 {
+    font-size: 2.5rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 8px;
+}
+
+.subtitle {
+    color: #666;
+    font-size: 1.1rem;
+}
+
+/* Search container */
+.search-container {
+    position: relative;
+    max-width: 600px;
+    margin: 0 auto 30px;
+}
+
+#searchInput {
+    width: 100%;
+    padding: 14px 20px;
+    font-size: 1rem;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#searchInput:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+}
+
+#searchInput::placeholder {
+    color: #999;
+}
+
+.result-count {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #666;
+    font-size: 0.9rem;
+    pointer-events: none;
+}
+
+/* People list */
+.people-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Person row */
+.person-row {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.person-row:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+}
+
+.person-row.hidden {
+    display: none;
+}
+
+.person-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.person-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex: 1;
+    min-width: 200px;
+}
+
+.profile-img {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #eee;
+    flex-shrink: 0;
+}
+
+.person-name {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #2c3e50;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.person-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 18px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.btn-primary {
+    background-color: #3498db;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #2980b9;
+    transform: translateY(-1px);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.btn-secondary {
+    background-color: #ecf0f1;
+    color: #2c3e50;
+}
+
+.btn-secondary:hover {
+    background-color: #bdc3c7;
+    transform: translateY(-1px);
+}
+
+.btn-icon {
+    padding: 10px;
+    border-radius: 50%;
+    width: 42px;
+    height: 42px;
+}
+
+.btn-icon svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Arrow button rotation */
+.arrow-btn.expanded .arrow-icon {
+    transform: rotate(180deg);
+}
+
+/* Person card (expandable content) */
+.person-card {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+    background-color: #fafafa;
+    border-top: 1px solid #eee;
+}
+
+.person-card.expanded {
+    max-height: 5000px; /* Large enough for all images */
+    padding: 20px;
+}
+
+.person-card:not(.expanded) {
+    padding: 0 20px;
+}
+
+/* Images grid */
+.images-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+@media (min-width: 600px) {
+    .images-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 900px) {
+    .images-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (min-width: 1200px) {
+    .images-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+.image-item {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.image-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.image-wrapper {
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
+}
+
+.image-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s;
+}
+
+.image-item:hover .image-wrapper img {
+    transform: scale(1.05);
+}
+
+.image-filename {
+    padding: 10px 12px;
+    font-size: 0.8rem;
+    color: #666;
+    background: #fafafa;
+    border-top: 1px solid #eee;
+    word-break: break-all;
+    text-align: center;
+}
+
+.download-link {
+    display: block;
+    width: 100%;
+    padding: 10px 12px;
+    background: #3498db;
+    color: white;
+    text-align: center;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: background-color 0.2s;
+    border: none;
+    cursor: pointer;
+}
+
+.download-link:hover {
+    background: #2980b9;
+    color: white;
+}
+
+/* No images message */
+.no-images {
+    text-align: center;
+    padding: 40px 20px;
+    color: #999;
+    font-style: italic;
+}
+
+/* Footer */
+footer {
+    text-align: center;
+    padding: 20px;
+    color: #999;
+    font-size: 0.9rem;
+}
+
+/* Loading state */
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    .container {
+        padding: 15px;
+    }
+    
+    header h1 {
+        font-size: 2rem;
+    }
+    
+    .person-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .person-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+    
+    .btn {
+        padding: 8px 14px;
+        font-size: 0.85rem;
+    }
+    
+    .profile-img {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .person-name {
+        font-size: 1.1rem;
+    }
+}

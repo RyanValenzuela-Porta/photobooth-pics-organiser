@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Sorter - Photobooth Customs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Photobooth Customs</h1>
+            <p class="subtitle">Browse and download photos by person</p>
+        </header>
+        
+        <div class="search-container">
+            <input 
+                type="text" 
+                id="searchInput" 
+                placeholder="Search by name..." 
+                autocomplete="off"
+            >
+            <span id="resultCount" class="result-count"></span>
+        </div>
+        
+        <main id="peopleList" class="people-list">
+            <!-- Person rows will be dynamically inserted here -->
+        </main>
+        
+        <footer>
+            <p>Total: <span id="totalPeople">0</span> people</p>
+        </footer>
+    </div>
+    
+    <script src="data.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
