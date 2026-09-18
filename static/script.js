@@ -46,7 +46,8 @@ function createPersonRow(person, index) {
     
     const profileImg = document.createElement('img');
     profileImg.className = 'profile-img';
-    profileImg.src = `photobooth_customs/${person.profile_pic}`;
+    // Profile pics are in unique_faces_md folder
+    profileImg.src = `unique_faces_md/${person.profile_pic}`;
     profileImg.alt = `${person.name} profile`;
     profileImg.loading = 'lazy';
     profileImg.onerror = () => {
@@ -87,7 +88,7 @@ function createPersonRow(person, index) {
     `;
     downloadAllBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        downloadAllImages(person);
+        downloadAllImages(person, downloadAllBtn);
     });
     
     if (person.images.length === 0) {
@@ -154,15 +155,22 @@ function populateCard(card, person) {
         filenameDiv.className = 'image-filename';
         filenameDiv.textContent = imageName;
         
-        const downloadLink = document.createElement('a');
-        downloadLink.className = 'download-link';
-        downloadLink.href = `photobooth_customs/${imageName}`;
-        downloadLink.download = imageName;
-        downloadLink.textContent = 'Download';
+        const downloadBtn = document.createElement('button');
+        downloadBtn.className = 'download-btn';
+        downloadBtn.innerHTML = `
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+            </svg>
+            Download
+        `;
+        downloadBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            downloadSingleImage(imageName, downloadBtn);
+        });
         
         item.appendChild(wrapper);
         item.appendChild(filenameDiv);
-        item.appendChild(downloadLink);
+        item.appendChild(downloadBtn);
         
         grid.appendChild(item);
     });
@@ -170,12 +178,111 @@ function populateCard(card, person) {
     card.appendChild(grid);
 }
 
-// Download all images for a person (as a zip would be ideal, but we'll trigger individual downloads)
-async function downloadAllImages(person) {
+// Download all images for a person as a ZIP file (single download dialog)
+async function downloadAllImages(person, btn) {
     if (person.images.length === 0) return;
     
-    const btn = event.target.closest('.btn');
-    const originalText = btn.innerHTML;
+    const originalHTML = btn.innerHTML;
+    
+    // Check if JSZip is available
+    if (typeof JSZip === 'undefined') {
+        console.warn('JSZip not loaded, falling back to sequential downloads');
+        await downloadAllSequential(person, btn, originalHTML);
+        return;
+    }
+    
+    btn.innerHTML = `
+        <svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-opacity="0.25"/>
+            <path stroke="currentColor" stroke-width="3" stroke-linecap="round" d="M12 2a10 10 0 0 1 10 10">
+                <animateTransform attributeName="transform" type="rotate" dur="1s" from="0 12 12" to="360 12 12" repeatCount="indefinite"/>
+            </path>
+        </svg>
+        Preparing ZIP...
+    `;
+    btn.disabled = true;
+    
+    try {
+        const zip = new JSZip();
+        let successCount = 0;
+        
+        // Fetch all images and add to ZIP
+        for (let i = 0; i < person.images.length; i++) {
+            const imageName = person.images[i];
+            
+            btn.innerHTML = `
+                <svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-opacity="0.25"/>
+                    <path stroke="currentColor" stroke-width="3" stroke-linecap="round" d="M12 2a10 10 0 0 1 10 10">
+                        <animateTransform attributeName="transform" type="rotate" dur="1s" from="0 12 12" to="360 12 12" repeatCount="indefinite"/>
+                    </path>
+                </svg>
+                Adding ${i + 1}/${person.images.length}...
+            `;
+            
+            try {
+                const response = await fetch(`photobooth_customs/${imageName}`);
+                if (response.ok) {
+                    const blob = await response.blob();
+                    zip.file(imageName, blob);
+                    successCount++;
+                }
+            } catch (e) {
+                console.error(`Failed to add ${imageName} to ZIP:`, e);
+            }
+        }
+        
+        if (successCount === 0) {
+            throw new Error('No images could be fetched');
+        }
+        
+        btn.innerHTML = `
+            <svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-opacity="0.25"/>
+                <path stroke="currentColor" stroke-width="3" stroke-linecap="round" d="M12 2a10 10 0 0 1 10 10">
+                    <animateTransform attributeName="transform" type="rotate" dur="1s" from="0 12 12" to="360 12 12" repeatCount="indefinite"/>
+                </path>
+            </svg>
+            Creating ZIP...
+        `;
+        
+        // Generate ZIP blob
+        const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+        
+        // Trigger download
+        const zipName = `${person.name.replace(/[^a-z0-9]/gi, '_')}_photos.zip`;
+        const blobUrl = URL.createObjectURL(zipBlob);
+        
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = zipName;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        
+        btn.innerHTML = `
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Downloaded ${successCount} photos
+        `;
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+        }, 2000);
+        
+    } catch (error) {
+        console.error('ZIP download failed:', error);
+        // Fall back to sequential downloads
+        await downloadAllSequential(person, btn, originalHTML);
+    }
+}
+
+// Download all images sequentially (fallback method)
+async function downloadAllSequential(person, btn, originalHTML) {
     btn.innerHTML = `
         <svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-opacity="0.25"/>
@@ -188,34 +295,67 @@ async function downloadAllImages(person) {
     btn.disabled = true;
     
     try {
-        // Download each image sequentially with small delays to avoid browser blocking
         for (let i = 0; i < person.images.length; i++) {
             const imageName = person.images[i];
-            await downloadImage(imageName);
-            // Small delay between downloads
+            await downloadSingleImage(imageName);
             if (i < person.images.length - 1) {
                 await new Promise(resolve => setTimeout(resolve, 300));
             }
         }
     } finally {
-        btn.innerHTML = originalText;
+        btn.innerHTML = originalHTML;
         btn.disabled = false;
     }
 }
 
-// Download a single image
-function downloadImage(imageName) {
-    return new Promise((resolve) => {
+// Download a single image by fetching as blob and triggering download
+async function downloadSingleImage(imageName, btn = null) {
+    const url = `photobooth_customs/${imageName}`;
+    
+    if (btn) {
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = `
+            <svg class="spinner" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-opacity="0.25"/>
+                <path stroke="currentColor" stroke-width="3" stroke-linecap="round" d="M12 2a10 10 0 0 1 10 10">
+                    <animateTransform attributeName="transform" type="rotate" dur="1s" from="0 12 12" to="360 12 12" repeatCount="indefinite"/>
+                </path>
+            </svg>
+        `;
+        btn.disabled = true;
+        
+        try {
+            await fetchAndDownload(url, imageName);
+        } finally {
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+        }
+    } else {
+        await fetchAndDownload(url, imageName);
+    }
+}
+
+async function fetchAndDownload(url, filename) {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
+        
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        
         const link = document.createElement('a');
-        link.href = `photobooth_customs/${imageName}`;
-        link.download = imageName;
+        link.href = blobUrl;
+        link.download = filename;
         link.style.display = 'none';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        // Give browser time to process
-        setTimeout(resolve, 100);
-    });
+        
+        // Clean up object URL after a delay
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    } catch (error) {
+        console.error('Download failed:', error);
+    }
 }
 
 // Search functionality

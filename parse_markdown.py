@@ -24,7 +24,7 @@ def parse_unique_faces(md_path):
             continue
         name = name_match.group(1).strip()
         
-        # Extract profile picture filename
+        # Extract profile picture filename (face-X.jpg from unique_faces_md)
         profile_match = re.search(r'!\[Profile Picture\]\((face-\d+\.jpg)\)', section)
         profile_pic = profile_match.group(1) if profile_match else None
         
@@ -43,8 +43,8 @@ def parse_unique_faces(md_path):
                 seen.add(img)
                 unique_images.append(img)
         
-        # Use first image as profile pic since face-* files don't exist
-        profile_pic_final = unique_images[0] if unique_images else (profile_pic or '')
+        # Profile pic is in unique_faces_md folder
+        profile_pic_final = profile_pic if profile_pic else (unique_images[0] if unique_images else '')
         
         people.append({
             'name': name,
@@ -55,7 +55,7 @@ def parse_unique_faces(md_path):
     return people
 
 if __name__ == '__main__':
-    md_path = 'face_sorter/unique_faces_md/unique_faces.md'
+    md_path = 'face_sorter/static/unique_faces_md/unique_faces.md'
     people = parse_unique_faces(md_path)
     
     # Output as JavaScript module
