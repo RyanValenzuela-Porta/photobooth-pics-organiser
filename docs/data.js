@@ -149,7 +149,7 @@ const peopleData = [
     ]
   },
   {
-    "name": "Mel",
+    "name": "Person Identity 17",
     "profile_pic": "face-17.jpg",
     "images": [
       "2026-8-22-62202.jpg",
@@ -175,7 +175,7 @@ const peopleData = [
     ]
   },
   {
-    "name": "Joy",
+    "name": "Person Identity 20",
     "profile_pic": "face-20.jpg",
     "images": [
       "2026-8-22-62202.jpg",
